@@ -109,10 +109,11 @@ def transform_render(self, widtho, heighto, st, at):
     fit = state.fit
 
     if fit is None:
-        fit = 'contain' if (xsize is None) or (ysize is None) else 'fill'
+        fit = 'fill'
 
-    if (xsize is not None) and (ysize is not None) and fit == 'fill':
+    if xsize is not None:
         widtho = xsize
+    if ysize is not None:
         heighto = ysize
 
     cr = render(child, widtho, heighto, st - self.child_st_base, at)
@@ -216,7 +217,7 @@ def transform_render(self, widtho, heighto, st, at):
 
         negative_xo, negative_yo, width, height = crop
 
-        if state.rotate:
+        if state.rotate is not None:
             clipcr = Render(width, height)
             clipcr.subpixel_blit(cr, (-negative_xo, -negative_yo))
             clipcr.xclipping = True
@@ -255,7 +256,7 @@ def transform_render(self, widtho, heighto, st, at):
                 if xsize is None:
                     xsize = width
                 if ysize is None:
-                    ysize = width
+                    ysize = height
 
         if mul is not None:
             xsize = mul * width
@@ -367,14 +368,20 @@ def transform_render(self, widtho, heighto, st, at):
 
     rv = Render(width, height)
 
-    if state.mesh:
+    mesh = state.mesh
+
+    blur = state.blur or None
+
+    if (blur is not None) and (not mesh):
+        mesh = True
+
+    if mesh:
 
         rv.operation = renpy.display.render.FLATTEN
         rv.add_shader("renpy.texture")
 
-
-        if isinstance(state.mesh, tuple):
-            mesh_width, mesh_height = state.mesh
+        if isinstance(mesh, tuple):
+            mesh_width, mesh_height = mesh
 
             rv.mesh = renpy.gl2.gl2mesh2.Mesh2.texture_grid_mesh(
                 mesh_width, mesh_height,
@@ -383,6 +390,10 @@ def transform_render(self, widtho, heighto, st, at):
         else:
             rv.mesh = True
 
+    if blur:
+        rv.add_shader("-renpy.texture")
+        rv.add_shader("renpy.blur")
+        rv.add_uniform("u_renpy_blur_log2", math.log(state.blur, 2))
 
     if state.matrixcolor:
         matrix = state.matrixcolor
@@ -448,11 +459,17 @@ def transform_render(self, widtho, heighto, st, at):
             for name in state.shader:
                 rv.add_shader(name)
 
-        for name in renpy.display.transform.uniforms:
-            value = getattr(state, name, None)
+    for name in renpy.display.transform.uniforms:
+        value = getattr(state, name, None)
 
-            if value is not None:
-                rv.add_uniform(name, value)
+        if value is not None:
+            rv.add_uniform(name, value)
+
+    for name in renpy.display.transform.gl_properties:
+        value = getattr(state, name, None)
+
+        if value is not None:
+            rv.add_property(name[3:], value)
 
     # Clipping.
     rv.xclipping = clipping
@@ -469,4 +486,3 @@ def transform_render(self, widtho, heighto, st, at):
     self.render_size = (width, height)
 
     return rv
-

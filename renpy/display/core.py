@@ -1803,6 +1803,9 @@ class Interface(object):
         # Things to be preloaded.
         self.preloads = [ ]
 
+        # The time at which this object was initialized.
+        self.init_time = get_time()
+
         # The time at which this draw occurs.
         self.frame_time = 0
 
@@ -1876,17 +1879,6 @@ class Interface(object):
         # The thread that can do display operations.
         self.thread = threading.current_thread()
 
-        # Initialize audio.
-        renpy.audio.audio.init()
-
-        # Initialize pygame.
-        try:
-            pygame.display.init()
-        except:
-            pass
-
-        self.post_init()
-
         # Init timing.
         init_time()
         self.mouse_event_time = get_time()
@@ -1934,8 +1926,6 @@ class Interface(object):
         # For compatibility with older code.
         if renpy.config.periodic_callback:
             renpy.config.periodic_callbacks.append(renpy.config.periodic_callback)
-
-        renpy.display.emulator.init_emulator()
 
         # Has start been called?
         self.started = False
@@ -2011,13 +2001,28 @@ class Interface(object):
         Starts the interface, by opening a window and setting the mode.
         """
 
+        import traceback
+
         if self.started:
             return
+
+        # Initialize audio.
+        renpy.audio.audio.init()
+
+        # Initialize pygame.
+        try:
+            pygame.display.init()
+        except:
+            pass
+
+        self.post_init()
+
+        renpy.display.emulator.init_emulator()
 
         gc.collect()
 
         if gc.garbage:
-            gc.garbage[:] = [ ]
+            del gc.garbage[:]
 
         renpy.display.render.render_ready()
 
@@ -2058,6 +2063,7 @@ class Interface(object):
         pygame.display.hint("SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS", "0")
         pygame.display.hint("SDL_TOUCH_MOUSE_EVENTS", "1")
         pygame.display.hint("SDL_MOUSE_TOUCH_EVENTS", "0")
+        pygame.display.hint("SDL_EMSCRIPTEN_ASYNCIFY", "0")
 
         # Needed for Unity.
         wmclass = renpy.config.save_directory or os.path.basename(sys.argv[0])
@@ -2095,10 +2101,11 @@ class Interface(object):
         if icon:
 
             try:
-                im = renpy.display.scale.image_load_unscaled(
-                    renpy.loader.load(icon),
-                    icon,
-                    )
+                with renpy.loader.load(icon) as f:
+                    im = renpy.display.scale.image_load_unscaled(
+                        f,
+                        icon,
+                        )
 
                 # Convert the aspect ratio to be square.
                 iw, ih = im.get_size()
@@ -2306,6 +2313,9 @@ class Interface(object):
         if draw:
             renpy.display.draw.draw_screen(surftree)
 
+        if renpy.emscripten:
+            emscripten.sleep(0)
+
         now = time.time()
 
         self.frame_times.append(now)
@@ -2355,10 +2365,9 @@ class Interface(object):
 
         self.screenshot_surface = surf
 
-        sio = io.BytesIO()
-        renpy.display.module.save_png(surf, sio, 0)
-        self.screenshot = sio.getvalue()
-        sio.close()
+        with io.BytesIO() as sio:
+            renpy.display.module.save_png(surf, sio, 0)
+            self.screenshot = sio.getvalue()
 
     def check_background_screenshot(self):
         """
@@ -2557,7 +2566,18 @@ class Interface(object):
 
         self.check_background_screenshot()
 
-        ev = pygame.event.wait()
+        if renpy.emscripten:
+
+            while True:
+                ev = pygame.event.poll()
+                if ev.type != pygame.NOEVENT:
+                    break
+
+                emscripten.sleep(5)
+
+        else:
+            ev = pygame.event.wait()
+
         self.last_event = ev
 
         return ev
@@ -2936,7 +2956,7 @@ class Interface(object):
 
             if gc.garbage:
                 renpy.memory.print_garbage(gen)
-                gc.garbage[:] = [ ]
+                del gc.garbage[:]
 
             renpy.plog(2, "after gc")
 
@@ -3248,9 +3268,9 @@ class Interface(object):
             if trans_pause:
 
                 if renpy.store._dismiss_pause:
-                    sb = renpy.display.behavior.SayBehavior()
+                    sb = renpy.display.behavior.SayBehavior(dismiss_unfocused='dismiss')
                 else:
-                    sb = renpy.display.behavior.SayBehavior(dismiss='dismiss_hard_pause')
+                    sb = renpy.display.behavior.SayBehavior(dismiss_unfocused='dismiss_hard_pause')
 
                 root_widget.add(sb)
                 focus_roots.append(sb)

@@ -226,6 +226,10 @@ Occasionally Used
     If not None, a function that is called with no arguments after a
     replay completes.
 
+.. var:: config.allow_underfull_grids = False
+
+    If True, Ren'Py will not require grids to be full in order to display.
+
 .. var:: config.auto_channels = { "audio" : ( "sfx", "", ""  ) }
 
     This is used to define automatic audio channels. It's a map the
@@ -1071,14 +1075,6 @@ Rarely or Internally Used
     This is the amount of penalty to apply to moves perpendicular to
     the selected direction of motion, when moving focus with the
     keyboard.
-
-.. var:: config.gl_enable = True
-
-    Set this to False to disable OpenGL acceleration. OpenGL acceleration
-    will automatically be disabled if it's determined that the system
-    cannot support it, so it usually isn't necessary to set this.
-
-    OpenGL can also be disabled by holding down shift at startup.
 
 .. var:: config.gl_resize = True
 

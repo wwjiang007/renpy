@@ -149,9 +149,8 @@ def run(restart):
 
 def load_rpe(fn):
 
-    zfn = zipfile.ZipFile(fn)
-    autorun = zfn.read("autorun.py")
-    zfn.close()
+    with zipfile.ZipFile(fn) as zfn:
+        autorun = zfn.read("autorun.py")
 
     sys.path.insert(0, fn)
     exec(autorun, dict())
@@ -309,6 +308,12 @@ def main():
     # Init the config after load.
     renpy.config.init()
 
+    # Reset live2d if it exists.
+    try:
+        renpy.gl2.live2d.reset()
+    except:
+        pass
+
     # Set up variants.
     choose_variants()
     renpy.display.touch = "touch" in renpy.config.variants
@@ -350,14 +355,22 @@ def main():
             if fn.lower().endswith(".rpe"):
                 load_rpe(dir + "/" + fn)
 
+    # Generate a list of extensions for each archive handler.
+    archive_extensions = [ ]
+    for handler in renpy.loader.archive_handlers:
+        for ext in handler.get_supported_extensions():
+            if not (ext in archive_extensions):
+                archive_extensions.append(ext)
+
     # The basename is the final component of the path to the gamedir.
     for i in sorted(os.listdir(renpy.config.gamedir)):
+        base, ext = os.path.splitext(i)
 
-        if not i.endswith(".rpa"):
+        # Check if the archive does not have any of the extensions in archive_extensions
+        if not (ext in archive_extensions):
             continue
 
-        i = i[:-4]
-        renpy.config.archives.append(i)
+        renpy.config.archives.append(base)
 
     renpy.config.archives.reverse()
 
@@ -561,6 +574,9 @@ def main():
 
         gc.collect(2)
 
+        if gc.garbage:
+            del gc.garbage[:]
+
         if renpy.config.manage_gc:
             gc.set_threshold(*renpy.config.gc_thresholds)
 
@@ -604,9 +620,9 @@ def main():
 
             finally:
 
-                # Reset if it exists.
+                # Reset live2d if it exists.
                 try:
-                    renpy.gl2.live2d.reset()
+                    renpy.gl2.live2d.reset_states()
                 except:
                     pass
 

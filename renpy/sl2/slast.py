@@ -1495,6 +1495,7 @@ class SLFor(SLBlock):
 
         rv.variable = self.variable
         rv.expression = self.expression
+        rv.index_expression = self.index_expression
 
         return rv
 
@@ -1563,6 +1564,20 @@ class SLFor(SLBlock):
 
             ctx.scope[variable] = v
 
+            children_i = iter(self.children)
+
+            # If we have a variable expression as a tuple, it is necessary
+            # to execute the first child before evaluating the index value,
+            # because the index can be one of this tuple member.
+            if variable == "_sl2_i":
+                sl_python = next(children_i)
+                # It can only fail if the unpacking fails, but it can still
+                try:
+                    sl_python.execute(ctx)
+                except:
+                    if not context.predicting:
+                        raise
+
             if self.index_expression is not None:
                 index = eval(self.index_expression, ctx.globals, ctx.scope)
 
@@ -1580,7 +1595,7 @@ class SLFor(SLBlock):
 
             # Inline of SLBlock.execute.
 
-            for i in self.children:
+            for i in children_i:
                 try:
                     i.execute(ctx)
                 except:
@@ -2226,7 +2241,6 @@ class SLScreen(SLBlock):
 
         rv.prepared = False
         rv.analysis = None
-        rv.ast = None
 
         return rv
 
@@ -2415,14 +2429,12 @@ def load_cache():
         return
 
     try:
-        f = renpy.loader.load(CACHE_FILENAME)
+        with renpy.loader.load(CACHE_FILENAME) as f:
+            digest = f.read(hashlib.md5().digest_size)
+            if digest != renpy.game.script.digest.digest():
+                return
 
-        digest = f.read(hashlib.md5().digest_size)
-        if digest != renpy.game.script.digest.digest():
-            return
-
-        s = loads(zlib.decompress(f.read()))
-        f.close()
+            s = loads(zlib.decompress(f.read()))
 
         if s.version == scache.version:
             renpy.game.script.update_bytecode()

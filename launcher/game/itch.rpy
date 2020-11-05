@@ -48,11 +48,11 @@ init python:
             pass
 
         import urllib2
-        import ssl
 
         with interface.error_handling(_("Downloading the itch.io butler.")):
-            context = ssl._create_unverified_context()
-            response = urllib2.urlopen("https://broth.itch.ovh/butler/{}/LATEST/archive/default".format(platform), context=context)
+            url = "https://broth.itch.ovh/butler/{}/LATEST/archive/default".format(platform)
+            req = urllib2.Request(url, headers={'User-Agent' : "Renpy"})
+            response = urllib2.urlopen(req, context=ssl_context())
 
             with open(zip, "wb") as f:
                 while True:

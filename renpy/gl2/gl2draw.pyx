@@ -182,13 +182,12 @@ cdef class GL2Draw:
 
         renpy.display.log.write("primary display bounds: %r", bounds)
 
-        head_full_w = bounds[2]
         head_w = bounds[2] - 102
         head_h = bounds[3] - 102
 
         # Figure out the default window size.
-        bound_w = min(vwidth, visible_w, head_w)
-        bound_h = min(vwidth, visible_h, head_h)
+        bound_w = min(visible_w, head_w)
+        bound_h = min(visible_h, head_h)
 
         self.info["max_window_size"] = (
             int(round(min(bound_h * virtual_ar, bound_w))),
@@ -295,8 +294,6 @@ cdef class GL2Draw:
             renpy.display.log.write("GL Disabled.")
             return False
 
-        print("Using {} renderer.".format(self.info["renderer"]))
-
         if renpy.mobile or renpy.game.preferences.physical_size is None: # @UndefinedVariable
             physical_size = (None, None)
         else:
@@ -386,7 +383,7 @@ cdef class GL2Draw:
                 renpy.display.log.write("Windowed mode.")
                 self.window = pygame.display.set_mode((pwidth, pheight), window_flags)
 
-            except pygame.error, e:
+            except pygame.error as e:
                 renpy.display.log.write("Could not get pygame screen: %r", e)
                 return False
 
@@ -403,8 +400,6 @@ cdef class GL2Draw:
         renpy.display.log.write("Renderer: %r", renderer)
         renpy.display.log.write("Version: %r", version)
         renpy.display.log.write("Display Info: %s", self.display_info)
-
-        print(renderer, version)
 
         extensions_string = <char *> glGetString(GL_EXTENSIONS)
         extensions = set(extensions_string.split(" "))
@@ -535,8 +530,12 @@ cdef class GL2Draw:
         if renpy.android or renpy.ios:
             fullscreen = True
 
-        width = renpy.game.preferences.physical_size[0] or self.virtual_size[0]
-        height = renpy.game.preferences.physical_size[1] or self.virtual_size[1]
+        if renpy.game.preferences.physical_size:
+            width = renpy.game.preferences.physical_size[0] or self.virtual_size[0]
+            height = renpy.game.preferences.physical_size[1] or self.virtual_size[1]
+        else:
+            width = self.virtual_size[0]
+            height = self.virtual_size[1]
 
         max_w, max_h = self.info["max_window_size"]
         width = min(width, max_w)
@@ -608,9 +607,11 @@ cdef class GL2Draw:
         # higher pitch.
         BORDER = 64
 
-        width = max(self.virtual_size[0] + BORDER, self.drawable_size[0] + BORDER, 1024)
+        width, height = renpy.config.fbo_size
+
+        width = max(self.virtual_size[0] + BORDER, self.drawable_size[0] + BORDER, width)
         width = min(width, max_texture_size, max_renderbuffer_size)
-        height = max(self.virtual_size[1] + BORDER, self.drawable_size[1] + BORDER, 1024)
+        height = max(self.virtual_size[1] + BORDER, self.drawable_size[1] + BORDER, height)
         height = min(height, max_texture_size, max_renderbuffer_size)
 
         renpy.display.log.write("Maximum texture size: %dx%d", width, height)
@@ -870,8 +871,13 @@ cdef class GL2Draw:
             if r.uniforms:
                 uniforms.update(r.uniforms)
 
+            if r.properties:
+                anisotropic = r.properties.get("anisotropic", False)
+            else:
+                anisotropic = True
+
             for i, c in enumerate(r.children):
-                uniforms["tex" + str(i)] = self.render_to_texture(c[0])
+                uniforms["tex" + str(i)] = self.render_to_texture(c[0], anisotropic=anisotropic)
 
             if r.mesh is True:
                 mesh = uniforms["tex0"].mesh
@@ -885,7 +891,7 @@ cdef class GL2Draw:
                 uniforms)
 
 
-    def render_to_texture(self, what, alpha=True):
+    def render_to_texture(self, what, alpha=True, anisotropic=True):
         """
         Renders `what` to a texture. The texture will have the drawable
         size of `what`.
@@ -901,7 +907,7 @@ cdef class GL2Draw:
         if what.cached_texture is not None:
             return what.cached_texture
 
-        rv = self.texture_loader.render_to_texture(what)
+        rv = self.texture_loader.render_to_texture(what, anisotropic)
 
         what.cached_texture = rv
 
@@ -1182,7 +1188,7 @@ cdef class GL2DrawingContext:
         if clip_polygon is not None:
 
             if model.reverse is not IDENTITY:
-                clip_polygon.multiply_matrix_inplace(model.forward)
+                clip_polygon = clip_polygon.multiply_matrix(model.forward)
 
             mesh = mesh.crop(clip_polygon)
 
@@ -1193,9 +1199,10 @@ cdef class GL2DrawingContext:
 
         program.start()
 
+        program.set_uniform("u_model_size", (model.width, model.height))
         program.set_uniform("u_lod_bias", -1.0)
         program.set_uniform("u_transform", transform)
-        program.set_uniform("u_time", renpy.display.interface.frame_time)
+        program.set_uniform("u_time", (renpy.display.interface.frame_time - renpy.display.interface.init_time) % 86400)
         program.set_uniform("u_random", (random.random(), random.random(), random.random(), random.random()))
 
         model.program_uniforms(program)
@@ -1250,7 +1257,7 @@ cdef class GL2DrawingContext:
             new_clip_polygon = Polygon.rectangle(0, 0, r.width, r.height)
 
             if clip_polygon is not None:
-                clip_polygon = new_clip_polygon.intersect(new_clip_polygon)
+                clip_polygon = new_clip_polygon.intersect(clip_polygon)
                 if clip_polygon is None:
                     return
             else:

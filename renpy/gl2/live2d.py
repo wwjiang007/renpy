@@ -128,13 +128,20 @@ def init():
 
 def reset():
     """
-    Resets this module when Ren'Py restarts.
+    Resets this module when Ren'Py reloads the script.
     """
 
     global did_init
     did_init = False
 
     common_cache.clear()
+
+
+def reset_states():
+    """
+    Resets the Live2D states when Ren'Py restarts the game.
+    """
+
     states.clear()
 
 
@@ -170,7 +177,8 @@ class Live2DCommon(object):
             self.base += "/"
 
         # The contents of the .model3.json file.
-        self.model_json = json.load(renpy.loader.load(filename))
+        with renpy.loader.load(filename) as f:
+            self.model_json = json.load(f)
 
         # The model created from the moc3 file.
         self.model = renpy.gl2.live2dmodel.Live2DModel(self.base + self.model_json["FileReferences"]["Moc"])
@@ -234,8 +242,8 @@ class Live2DCommon(object):
 
                 self.motions[name] = renpy.gl2.live2dmotion.Motion(
                     self.base + i["File"],
-                    i.get("FadeInTime", 0.0),
-                    i.get("FadeOutTime", 0.0))
+                    i.get("FadeInTime", 1.0),
+                    i.get("FadeOutTime", 1.0))
 
                 self.attributes.add(name)
 
@@ -253,7 +261,11 @@ class Live2DCommon(object):
             if renpy.loader.loadable(self.base + i["File"]):
                 renpy.display.log.write(" - expression %s -> %s", name, i["File"])
 
-                expression_json = json.load(renpy.loader.load(self.base + i["File"]))
+                if name in self.attributes:
+                    raise Exception("Name {!r} is already specified as a motion.".format(name))
+
+                with renpy.loader.load(self.base + i["File"]) as f:
+                    expression_json = json.load(f)
 
                 self.expressions[name] = expression_json.get("Parameters", [ ])
 
@@ -268,14 +280,36 @@ class Live2DCommon(object):
             elif i["Target"] == "Opacity":
                 self.model.opacity_groups[name] = ids
 
+        self.nonexclusive = { }
+
     def apply_aliases(self, aliases):
 
         for k, v in aliases.items():
-            if v in self.motions:
-                self.motions[k] = self.motions[v]
+            target = None
 
-            if v in self.expressions:
-                self.expressions[k] = self.expressions[v]
+            if v in self.motions:
+                target = self.motions
+
+            elif v in self.expressions:
+                target = self.expressions
+
+            elif v in self.nonexclusive:
+                target = self.expressions
+
+            else:
+                raise Exception("Name {!r} is not a known motion or expression.".format(v))
+
+            if k in target:
+                raise Exception("Name {!r} is already specified as a motion or expression.".format(k))
+
+            target[k] = target[v]
+
+    def apply_nonexclusive(self, nonexclusive):
+        for i in nonexclusive:
+            if i not in self.expressions:
+                raise Exception("Name {!r} is not a known expression.".format(i))
+
+            self.nonexclusive[i] = self.expressions.pop(i)
 
 
 # This maps a filename to a Live2DCommon object.
@@ -363,6 +397,7 @@ class Live2D(renpy.display.core.Displayable):
 
     common_cache = None
     _duplicatable = True
+    used_nonexclusive = None
 
     @property
     def common(self):
@@ -379,13 +414,14 @@ class Live2D(renpy.display.core.Displayable):
         return rv
 
     # Note: When adding new parameters, make sure to add them to _duplicate, too.
-    def __init__(self, filename, zoom=None, top=0.0, base=1.0, height=1.0, loop=False, aliases={}, fade=None, motions=None, expression=None, ** properties):
+    def __init__(self, filename, zoom=None, top=0.0, base=1.0, height=1.0, loop=False, aliases={}, fade=None, motions=None, expression=None, nonexclusive=None, used_nonexclusive=None, **properties):
 
         super(Live2D, self).__init__(**properties)
 
         self.filename = filename
         self.motions = motions
         self.expression = expression
+        self.used_nonexclusive = used_nonexclusive
 
         self.zoom = zoom
         self.top = top
@@ -400,6 +436,9 @@ class Live2D(renpy.display.core.Displayable):
         # Load the common data. Needed!
         common = self.common
 
+        if nonexclusive:
+            common.apply_nonexclusive(nonexclusive)
+
         if aliases:
             common.apply_aliases(aliases)
 
@@ -408,8 +447,12 @@ class Live2D(renpy.display.core.Displayable):
         if not self._duplicatable:
             return self
 
+        if not args:
+            return self
+
         common = self.common
         motions = [ ]
+        used_nonexclusive = [ ]
 
         expression = None
 
@@ -417,6 +460,10 @@ class Live2D(renpy.display.core.Displayable):
 
             if i in common.motions:
                 motions.append(i)
+                continue
+
+            if i in common.nonexclusive:
+                used_nonexclusive.append(i)
                 continue
 
             if i in common.expressions:
@@ -437,12 +484,11 @@ class Live2D(renpy.display.core.Displayable):
             height=self.height,
             loop=self.loop,
             fade=self.fade,
-            expression=expression)
+            expression=expression,
+            used_nonexclusive=used_nonexclusive)
 
         rv.name = args.name
-
-        if args.args:
-            rv._duplicatable = False
+        rv._duplicatable = False
 
         return rv
 
@@ -476,6 +522,11 @@ class Live2D(renpy.display.core.Displayable):
             if i in common.expressions:
                 rv.insert(0, i)
                 break
+
+        # Choose all possible nonexclusive attributes.
+        for i in list(attributes) + list(optional):
+            if i in common.nonexclusive:
+                rv.append(i)
 
         return tuple(rv)
 
@@ -561,6 +612,11 @@ class Live2D(renpy.display.core.Displayable):
             old_redraw = None
 
         new_redraw = self.update(common, st, None)
+
+        if self.used_nonexclusive:
+            for e in self.used_nonexclusive:
+                for i in common.nonexclusive[e]:
+                    common.model.blend_parameter(i["Id"], i["Blend"], i["Value"])
 
         if self.expression:
             for i in common.expressions[self.expression]:

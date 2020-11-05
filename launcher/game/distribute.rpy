@@ -316,7 +316,7 @@ init python in distribute:
             for f in list(self):
 
                 if f.name.startswith("lib/python2.7") and (not duplicate):
-                    name = app + "/Contents/MacOS/lib/python2.7/" + f.name
+                    name = app + "/Contents/MacOS/" + f.name
 
                 elif f.name.startswith("lib/mac-x86_64"):
                     name = app + "/Contents/MacOS/" + f.name[15:]
@@ -489,6 +489,7 @@ init python in distribute:
             # The various executables, which change names based on self.executable_name.
             self.app = self.executable_name + ".app"
             self.exe = self.executable_name + ".exe"
+            self.exe32 = self.executable_name + "-32.exe"
             self.sh = self.executable_name + ".sh"
             self.py = self.executable_name + ".py"
 
@@ -842,7 +843,7 @@ init python in distribute:
                 CFBundleName=display_name,
                 CFBundlePackageType="APPL",
                 CFBundleShortVersionString=version,
-                CFBundleVersion="1.0.{0}".format(int(time.time())),
+                CFBundleVersion=time.strftime("%Y.%m%d.%H%M%S"),
                 LSApplicationCategoryType="public.app-category.simulation-games",
                 CFBundleDocumentTypes = [
                     {
@@ -862,6 +863,8 @@ init python in distribute:
 
             if self.build.get('allow_integrated_gpu', False):
                 plist["NSSupportsAutomaticGraphicsSwitching"] = True
+
+            plist.update(self.build.get("mac_info_plist", { }))
 
             rv = self.temp_filename("Info.plist")
             plistlib.writePlist(plist, rv)
@@ -945,7 +948,6 @@ init python in distribute:
             self.add_directory(filelist, resources)
             self.add_file(filelist, resources + "/icon.icns", icon_fn)
 
-
             if not self.build['renpy']:
                 self.add_directory(filelist, contents + "/MacOS/lib")
                 self.add_directory(filelist, contents + "/MacOS/lib/mac-x86_64")
@@ -988,9 +990,9 @@ init python in distribute:
                 if os.path.exists(tmp):
                     self.add_file(windows, dst, tmp)
 
-            write_exe("lib/windows-i686/renpy.exe", "renpy-32.exe", "renpy-32.exe")
+            write_exe("lib/windows-i686/renpy.exe", self.exe32, self.exe32)
             write_exe("lib/windows-i686/pythonw.exe", "lib/windows-i686/pythonw.exe", "pythonw-32.exe")
-            write_exe("lib/windows-x86_64/renpy.exe", "renpy.exe", "renpy-64.exe")
+            write_exe("lib/windows-x86_64/renpy.exe", self.exe, self.exe)
             write_exe("lib/windows-x86_64/pythonw.exe", "lib/windows-x86_64/pythonw.exe", "pythonw-64.exe")
 
         def add_main_py(self):

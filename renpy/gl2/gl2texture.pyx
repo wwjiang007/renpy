@@ -52,6 +52,10 @@ from renpy.display.matrix cimport Matrix
 # This has different names in GL and GLES, but the same value.
 cdef GLenum RGBA8 = 0x8058
 
+# An extension here,
+cdef GLenum TEXTURE_MAX_ANISOTROPY_EXT = 0x84FE
+cdef GLenum MAX_TEXTURE_MAX_ANISOTROPY_EXT = 0x84FF
+
 ################################################################################
 
 cdef class TextureLoader:
@@ -71,6 +75,8 @@ cdef class TextureLoader:
         self.free_list = [ ]
         self.total_texture_size = 0
         self.texture_load_queue = weakref.WeakSet()
+
+        glGetFloatv(MAX_TEXTURE_MAX_ANISOTROPY_EXT, &self.max_anisotropy)
 
     def quit(self):
         """
@@ -185,13 +191,13 @@ cdef class TextureLoader:
 
         return rv
 
-    def render_to_texture(self, what):
+    def render_to_texture(self, what, anisotropic=True):
         """
         Renders `what` to a texture.
         """
 
         rv = Texture(what.get_size(), self)
-        rv.from_render(what)
+        rv.from_render(what, anisotropic)
         return rv
 
 
@@ -279,7 +285,7 @@ cdef class GLTexture(Model):
 
         self.loader.texture_load_queue.add(self)
 
-    def from_render(GLTexture self, what):
+    def from_render(GLTexture self, what, anisotropic):
         """
         This renders `what` to this texture.
         """
@@ -290,8 +296,17 @@ cdef class GLTexture(Model):
         draw = self.loader.draw
 
         # The visible size of the texture.
-        tw = min(int(math.ceil(cw * draw.draw_per_virt)), loader.max_texture_width)
-        th = min(int(math.ceil(ch * draw.draw_per_virt)), loader.max_texture_height)
+
+        tw, th = draw.virt_to_draw.transform(cw, ch)
+
+        tw = min(int(tw), loader.max_texture_width)
+        th = min(int(th), loader.max_texture_height)
+
+        tw = max(tw, 1)
+        th = max(th, 1)
+
+        cw = max(cw, 1)
+        ch = max(ch, 1)
 
         cdef GLuint premultiplied
 
@@ -304,7 +319,7 @@ cdef class GLTexture(Model):
         cdef Matrix transform
         transform = Matrix.ctexture_projection(cw, ch)
 
-        self.allocate_texture(premultiplied, tw, th)
+        self.allocate_texture(premultiplied, tw, th, anisotropic)
 
         # Set up the viewport.
         glViewport(0, 0, tw, th)
@@ -389,7 +404,7 @@ cdef class GLTexture(Model):
         program.finish()
 
         # Create premultiplied.
-        self.allocate_texture(premultiplied, self.width, self.height)
+        self.allocate_texture(premultiplied, self.width, self.height, True)
 
         glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 0, 0, self.width, self.height, 0)
 
@@ -405,7 +420,7 @@ cdef class GLTexture(Model):
         self.loaded = True
         self.surface = None
 
-    def allocate_texture(GLTexture self, GLuint tex, int tw, int th):
+    def allocate_texture(GLTexture self, GLuint tex, int tw, int th, anisotropic):
         """
         Allocates the VRAM required to store `tex`, which is a `tw` x `th`
         texture, including all mipmap levels.
@@ -423,9 +438,17 @@ cdef class GLTexture(Model):
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
 
+        if anisotropic:
+            glTexParameterf(GL_TEXTURE_2D, TEXTURE_MAX_ANISOTROPY_EXT, self.loader.max_anisotropy)
+
+        # Store the texture size that was loaded.
+        self.texture_width = tw
+        self.texture_height = th
+
         cdef GLuint level = 0
 
         while True:
+
             glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, tw, th, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 
             if tw == 1 and th == 1:
@@ -435,48 +458,27 @@ cdef class GLTexture(Model):
             th = max(th >> 1, 1)
             level += 1
 
-    def mipmap_texture(GLTexture self, GLuint tex, int tw, int th):
-        """
-        Uses render-to-texture operations to create missing mipmap
-        levels.
-        """
-
-        cdef GLuint level = 0
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, level)
-
-        mesh = Mesh2.texture_rectangle(-1.0, -1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0)
-
-        glDisable(GL_BLEND)
-
-        while True:
-            if (tw <= 1) and (th <= 1):
-                break
-
-            tw = max(1, tw >> 1)
-            th = max(1, th >> 1)
-            level += 1
-
             if level > renpy.config.max_mipmap_level:
                 break
 
-            glViewport(0, 0, tw, th)
+    def mipmap_texture(GLTexture self, GLuint tex, int tw, int th):
+        """
+        Generate the mipmaps for a texture.
+        """
 
-            glClearColor(1.0, 0.0, 0.0, 1.0)
-            glClear(GL_COLOR_BUFFER_BIT)
+        cdef GLuint level = renpy.config.max_mipmap_level
 
-            # Draw.
-            program = self.loader.ftl_program
-            program.start()
-            program.set_uniform("tex0", tex)
-            program.draw(mesh, {})
-            program.finish()
+        glBindTexture(GL_TEXTURE_2D, tex)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, level)
 
-            glBindTexture(GL_TEXTURE_2D, tex)
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, level)
-            glCopyTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, 0, 0, tw, th, 0)
+        if level == 0:
+            return
 
-        glEnable(GL_BLEND)
+        if tw == 0 or th == 0:
+            return
 
+        glHint(GL_GENERATE_MIPMAP_HINT, GL_NICEST)
+        glGenerateMipmap(GL_TEXTURE_2D)
 
     def __del__(self):
         try:

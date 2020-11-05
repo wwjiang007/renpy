@@ -538,8 +538,9 @@ python early hide:
         if renpy.emscripten or os.environ.get('RENPY_SIMULATE_DOWNLOAD', False):
             fn = config.voice_filename_format.format(filename=_audio_eval(fn))
             try:
-                renpy.loader.load(fn)
-            except renpy.webloader.DownloadNeeded, exception:
+                with renpy.loader.load(fn) as f:
+                    pass
+            except renpy.webloader.DownloadNeeded as exception:
                 renpy.webloader.enqueue(exception.relpath, 'voice', None)
         return [ ]
 

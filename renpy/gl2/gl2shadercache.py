@@ -11,7 +11,10 @@ shader_part = { }
 
 def register_shader(name, **kwargs):
     """
-    This registers a part of a shader. Shader parts have a name, and then
+    :doc: register_shader
+
+    This registers a shader part. This takes `name`, and then
+    keyword arguments.
 
     `name`
         A string giving the name of the shader part. Names starting with an
@@ -24,7 +27,7 @@ def register_shader(name, **kwargs):
 
             variables='''
             uniform sampler2D tex0;
-            attribute vec2 tex_coord;
+            attribute vec2 a_tex_coord;
             varying vec2 v_tex_coord;
             '''
 
@@ -108,10 +111,11 @@ class ShaderPart(object):
             if not a:
                 continue
 
-            if len(a) != 3:
-                print("Unknown shader variable line {!r}. Only the form '{{uniform,attribute,vertex}} {{type}} {{name}} is allowed.".format(l))
-
             a = tuple(a)
+
+            if len(a) != 3:
+                raise Exception("{}: Unknown shader variable line {!r}. Only the form '{{uniform,attribute,vertex}} {{type}} {{name}} is allowed.".format(self.name, l))
+
             kind = a[0]
             name = a[2]
 
@@ -123,6 +127,8 @@ class ShaderPart(object):
 
             if kind == "uniform":
                 renpy.display.transform.add_uniform(name)
+
+        self.raw_variables = variables
 
 
 # A map from a tuple giving the parts that comprise a shader, to the Shader
@@ -334,30 +340,27 @@ class ShaderCache(object):
         """
 
         try:
-            f = renpy.loader.load(self.filename)
+            with renpy.loader.load(self.filename) as f:
+                for l in f:
+                    l = l.strip()
+                    partnames = tuple(l.strip().split())
+
+                    if not partnames:
+                        continue
+
+                    if not self.check(partnames):
+                        self.missing.add(partnames)
+                        continue
+
+                    try:
+                        self.get(partnames)
+                    except:
+                        renpy.display.log.write("Precompiling shader {!r}:".format(partnames))
+                        renpy.display.log.exception()
+                        self.missing.add(partnames)
         except:
             renpy.display.log.write("Could not open {!r}:".format(self.filename))
             return
-
-        for l in f:
-            l = l.strip()
-            partnames = tuple(l.strip().split())
-
-            if not partnames:
-                continue
-
-            if not self.check(partnames):
-                self.missing.add(partnames)
-                continue
-
-            try:
-                self.get(partnames)
-            except:
-                renpy.display.log.write("Precompiling shader {!r}:".format(partnames))
-                renpy.display.log.exception()
-                self.missing.add(partnames)
-
-        f.close()
 
     def clear(self):
         """

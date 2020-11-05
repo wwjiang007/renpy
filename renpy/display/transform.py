@@ -118,6 +118,7 @@ class TransformState(renpy.object.Object):
     matrixcolor = None
     shader = None
     mesh = False
+    blur = None
 
     def __init__(self):
         self.alpha = 1
@@ -162,6 +163,7 @@ class TransformState(renpy.object.Object):
         self.matrixcolor = None
         self.shader = None
         self.mesh = False
+        self.blur = None
 
         self.delay = 0
 
@@ -185,6 +187,9 @@ class TransformState(renpy.object.Object):
         self.inherited_yanchor = None
 
         for i in uniforms:
+            setattr(self, i, None)
+
+        for i in gl_properties:
             setattr(self, i, None)
 
     def take_state(self, ts):
@@ -222,6 +227,7 @@ class TransformState(renpy.object.Object):
         self.matrixcolor = ts.matrixcolor
         self.shader = ts.shader
         self.mesh = ts.mesh
+        self.blur = ts.blur
 
         self.last_angle = ts.last_angle
 
@@ -229,6 +235,9 @@ class TransformState(renpy.object.Object):
         self.events = ts.events
 
         for i in uniforms:
+            setattr(self, i, getattr(ts, i))
+
+        for i in gl_properties:
             setattr(self, i, getattr(ts, i))
 
         # Take the computed position properties, not the
@@ -315,6 +324,8 @@ class TransformState(renpy.object.Object):
         # It doesn't make sense to interpolate these.
         # diff2("shader", newts.shader, self.shader)
         # diff2("mesh", newts.mesh, self.mesh)
+
+        diff2("blur", newts.blur, self.blur)
 
         diff2("debug", newts.debug, self.debug)
         diff2("events", newts.events, self.events)
@@ -548,8 +559,10 @@ class Transform(Container):
     xtile = Proxy("xtile")
     ytile = Proxy("ytile")
 
+    matrixcolor = Proxy("matrixcolor")
     shader = Proxy("shader")
     mesh = Proxy("mesh")
+    blur = Proxy("blur")
 
     debug = Proxy("debug")
     events = Proxy("events")
@@ -1106,6 +1119,7 @@ class ATLTransform(renpy.atl.ATLTransformBase, Transform):
 
 
 uniforms = set()
+gl_properties = set()
 
 
 def add_uniform(name):
@@ -1130,3 +1144,19 @@ def add_uniform(name):
     setattr(Transform, name, Proxy(name))
     renpy.atl.PROPERTIES[name] = renpy.atl.any_object
 
+
+def add_gl_property(name):
+    """
+    Adds a GL property with `name` to Transform and ATL.
+    """
+
+    if name in gl_properties:
+        return
+
+    gl_properties.add(name)
+    setattr(TransformState, name, None)
+    setattr(Transform, name, Proxy(name))
+    renpy.atl.PROPERTIES[name] = renpy.atl.any_object
+
+
+add_gl_property("gl_color_mask")

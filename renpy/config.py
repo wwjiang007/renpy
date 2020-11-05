@@ -459,6 +459,9 @@ log_enable = True
 # Should we log text overflows?
 debug_text_overflow = False
 
+# Should underfull grids raise an exception?
+allow_underfull_grids = False
+
 # Should we save the window size in the preferences?
 save_physical_size = True
 
@@ -1050,6 +1053,13 @@ max_mipmap_level = 1000
 # Should we show the touch keyboard outside of emscripten/touch.
 touch_keyboard = os.environ.get("RENPY_TOUCH_KEYBOARD", False)
 
+# The size of the framebuffer Ren'Py creates, which doubles as the
+# largest texture size.
+fbo_size = (4096, 4096)
+
+# Names to ignore the redefinition of.
+lint_ignore_redefine = [ "gui.about" ]
+
 del os
 del collections
 
@@ -1077,4 +1087,3 @@ def init():
         (r'\.(png|jpg|jpeg|webp|gif|tif|tiff|bmp)$', renpy.exports.flush_cache_file),
         (r'\.(mp2|mp3|ogg|opus|wav)$', renpy.audio.audio.autoreload),
         ]
-

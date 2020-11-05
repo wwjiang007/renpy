@@ -979,6 +979,13 @@ These are used for the horizontal and vertical box layouts.
     or columns. (So it is the vertical spacing between lines in a wrapped
     hbox, and the horizontal spacing between columns in a wrapped vbox.)
 
+.. style-property:: order_reverse boolean
+
+    If False, the default, the items in the box will be drawn first-to-last,
+    with the first item in the box being below the second, and so on. If True,
+    this order will be reversed, and the first item in the box will be above
+    all other items in the box.
+
 
 .. _grid-style-properties:
 
@@ -1027,13 +1034,6 @@ These are used with the fixed layout.
     If True, the size of the fixed layout is shrunk vertically to match the
     bottom side of the bottommost child of the fixed.
 
-.. style-property:: order_reverse boolean
-
-    If False, the default, the items in the box will be draw first-to-last,
-    with the first item in the box being below the second, and so on. If True,
-    this order will be reversed, and the first item in the box will be above
-    all other items in the box.
-
 
 .. _margin-style-properties:
 
@@ -1041,7 +1041,8 @@ Margin Style Properties
 -----------------------
 
 Margin properties are used to add transparent space around some
-displyables. Most notably: windows, frames, buttons and grids.
+displayables. Most notably: windows, frames, buttons and outside
+a grid or vpgrid.
 
 .. style-property:: left_margin int
 

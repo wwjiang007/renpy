@@ -26,6 +26,22 @@ init python:
     import threading
     import time
 
+    ssl_context_cache = None
+
+    def ssl_context():
+        """
+        Returns the SSL context.
+        """
+
+        global ssl_context_cache
+
+        if ssl_context_cache is None:
+            import ssl
+            import certifi
+            ssl_context_cache = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH, cafile=certifi.where())
+
+        return ssl_context_cache
+
     class Downloader(object):
 
         def __init__(self, url, dest):
@@ -57,9 +73,7 @@ init python:
             try:
                 # Open the URL.
 
-                import ssl
-                context = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH, cafile=renpy.loader.transfn("cacert.pem"))
-                self.urlfile = urllib.request.urlopen(url, context=context)
+                self.urlfile = urllib.request.urlopen(url, context=ssl_context())
 
                 t = threading.Thread(target=self.thread)
                 t.daemon = True

@@ -156,17 +156,18 @@ def elide_filename(fn):
     or relative to the Ren'Py directory.
     """
 
-    ofn = fn
-    fn = os.path.abspath(fn)
-    basedir = os.path.abspath(renpy.config.basedir)
-    renpy_base = os.path.abspath(renpy.config.renpy_base)
+    original_fn = fn
+    fn = fn.replace("\\", "/")
 
-    if fn.startswith(basedir):
-        return os.path.relpath(fn, basedir).replace("\\", "/")
-    elif fn.startswith(renpy_base):
-        return os.path.relpath(fn, renpy_base).replace("\\", "/")
+    for d in [ renpy.config.basedir, renpy.config.renpy_base ]:
+        d = os.path.abspath(d).replace("\\", "/") + "/"
+        if fn.startswith(d):
+            rv = fn[len(d):]
+            break
     else:
-        return ofn.replace("\\", "/")
+        rv = original_fn.replace("\\", "/")
+
+    return rv
 
 
 def unelide_filename(fn):
@@ -213,9 +214,8 @@ def list_logical_lines(filename, filedata=None, linenumber=1, add_lines=False):
     if filedata:
         data = filedata
     else:
-        f = open(filename, "rb")
-        data = f.read().decode("utf-8")
-        f.close()
+        with open(filename, "rb") as f:
+            data = f.read().decode("utf-8")
 
     filename = elide_filename(filename)
     prefix = munge_filename(filename)
@@ -2507,7 +2507,6 @@ def translate_strings(init_loc, language, l):
             bc = compile(s, "<string>", "eval", renpy.python.new_compile_flags, 1)
             return eval(bc, renpy.store.__dict__)
         except:
-            raise
             ll.error('could not parse string')
 
     while ll.advance():
@@ -2925,34 +2924,33 @@ def report_parse_errors():
     full_text = ""
 
     f, error_fn = renpy.error.open_error_file("errors.txt", "w")
-    f.write("\ufeff") # BOM
+    with f:
+        f.write("\ufeff") # BOM
 
-    print("I'm sorry, but errors were detected in your script. Please correct the", file=f)
-    print("errors listed below, and try again.", file=f)
-    print("", file=f)
+        print("I'm sorry, but errors were detected in your script. Please correct the", file=f)
+        print("errors listed below, and try again.", file=f)
+        print("", file=f)
 
-    for i in parse_errors:
+        for i in parse_errors:
 
-        full_text += i
-        full_text += "\n\n"
+            full_text += i
+            full_text += "\n\n"
 
-        if not isinstance(i, str):
-            i = str(i, "utf-8", "replace")
+            if not isinstance(i, str):
+                i = str(i, "utf-8", "replace")
+
+            print("", file=f)
+            print(i, file=f)
+
+            try:
+                print("")
+                print(i)
+            except:
+                pass
 
         print("", file=f)
-        print(i, file=f)
-
-        try:
-            print("")
-            print(i)
-        except:
-            pass
-
-    print("", file=f)
-    print("Ren'Py Version:", renpy.version, file=f)
-    print(str(time.ctime()), file=f)
-
-    f.close()
+        print("Ren'Py Version:", renpy.version, file=f)
+        print(str(time.ctime()), file=f)
 
     renpy.display.error.report_parse_errors(full_text, error_fn)
 
