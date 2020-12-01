@@ -662,7 +662,6 @@ class Say(Node):
     def execute(self):
 
         next_node(self.next)
-        statement_name("say")
 
         try:
 
@@ -670,6 +669,11 @@ class Say(Node):
             renpy.game.context().temporary_attributes = self.temporary_attributes
 
             who = eval_who(self.who, self.who_fast)
+
+            if who is not None:
+                statement_name(getattr(who, "statement_name", "say"))
+            else:
+                statement_name("say")
 
             if not (
                     (who is None) or
@@ -713,6 +717,7 @@ class Say(Node):
         try:
 
             renpy.game.context().say_attributes = self.attributes
+            renpy.game.context().temporary_attributes = self.temporary_attributes
 
             who = eval_who(self.who, self.who_fast)
 
@@ -2275,7 +2280,7 @@ class Screen(Node):
 
     def __init__(self, loc, screen):
         """
-        @param screen: The screen object being defined. 
+        @param screen: The screen object being defined.
         In SL1, an instance of screenlang.ScreenLangScreen.
         In SL2, an instance of sl2.slast.SLScreen.
         """

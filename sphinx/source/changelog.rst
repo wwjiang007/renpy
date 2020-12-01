@@ -212,6 +212,9 @@ Translations
 The Simplified Chinese, Japanese, and Korean translations have been updated, and now
 use a unified font.
 
+There is a new Simplified Chinese translation of the tutorial game, courtesy of
+Neoteus.
+
 Depreciations and Removals
 --------------------------
 
@@ -228,6 +231,14 @@ renderer.
 
 Miscellaneous
 -------------
+
+Ren'Py now uses software playback of movies on Android and iOS devices,
+meaning the same files can be used on all platforms that support video
+playback.
+
+Defining a mouse cursor using :var:`config.mouse` now uses SDL2's color cursor
+API, which generally results in hardware acceleration and reduced mouse movement
+lag.
 
 The ``define`` statement can now be used to set a key in a dictionary. ::
 
