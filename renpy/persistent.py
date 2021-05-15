@@ -1,4 +1,4 @@
-# Copyright 2004-2020 Tom Rothamel <pytom@bishoujo.us>
+# Copyright 2004-2021 Tom Rothamel <pytom@bishoujo.us>
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation files
@@ -411,16 +411,18 @@ def save():
         if renpy.config.developer:
             raise
 
-
 ################################################################################
 # MultiPersistent
 ################################################################################
 
+
 save_MP_instances = weakref.WeakSet()
+
 
 def save_MP():
     for ins in save_MP_instances:
         ins.save()
+
 
 class _MultiPersistent(object):
 
@@ -442,14 +444,14 @@ class _MultiPersistent(object):
     def save(self):
 
         fn = self._filename
-        with open(fn + ".new", "wb") as f:
+        with open(fn + b".new", "wb") as f:
             dump(self, f)
 
         try:
-            os.rename(fn + ".new", fn)
+            os.rename(fn + b".new", fn)
         except:
             os.unlink(fn)
-            os.rename(fn + ".new", fn)
+            os.rename(fn + b".new", fn)
 
 
 def MultiPersistent(name, save_on_quit=False):
@@ -466,16 +468,16 @@ def MultiPersistent(name, save_on_quit=False):
         files = [ renpy.config.savedir ]
 
     elif renpy.windows:
-        files = [ os.path.expanduser("~/RenPy/Persistent") ]
+        files = [ os.path.expanduser(b"~/RenPy/Persistent") ]
 
         if 'APPDATA' in os.environ:
-            files.append(os.environ['APPDATA'] + "/RenPy/persistent")
+            files.append(os.environ[b'APPDATA'] + b"/RenPy/persistent")
 
     elif renpy.macintosh:
-        files = [ os.path.expanduser("~/.renpy/persistent"),
-                  os.path.expanduser("~/Library/RenPy/persistent") ]
+        files = [ os.path.expanduser(b"~/.renpy/persistent"),
+                  os.path.expanduser(b"~/Library/RenPy/persistent") ]
     else:
-        files = [ os.path.expanduser("~/.renpy/persistent") ]
+        files = [ os.path.expanduser(b"~/.renpy/persistent") ]
 
     if "RENPY_MULTIPERSISTENT" in os.environ:
         files = [ os.environ["RENPY_MULTIPERSISTENT"] ]
@@ -486,7 +488,7 @@ def MultiPersistent(name, save_on_quit=False):
     except:
         pass
 
-    fn = ""  # prevent a warning from happening.
+    fn = b"" # prevent a warning from happening.
     data = None
 
     # Find the first file that actually exists. Otherwise, use the last
@@ -505,16 +507,17 @@ def MultiPersistent(name, save_on_quit=False):
             rv = loads(data)
         except:
             data = None
-            renpy.display.log.write("Loading MultiPersistent at %s:" % fn)
+            renpy.display.log.write("Loading MultiPersistent at %r:" % fn)
             renpy.display.log.exception()
 
     if data is None:
         rv = _MultiPersistent()
 
-    rv._filename = fn  # W0201
+    rv._filename = fn # W0201
 
     if save_on_quit:
         save_MP_instances.add(rv)
+
     return rv
 
 

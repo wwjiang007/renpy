@@ -970,8 +970,8 @@ translate spanish strings:
     new "Calibrando [name] ([i]/[total])"
 
     # 00gamepad.rpy:58
-    old "Press or move the [control!r] [kind]."
-    new "Pulsa o mueve: [control!r] [kind]."
+    old "Press or move the [control!s] [kind]."
+    new "Pulsa o mueve: [control!s] [kind]."
 
     # 00gamepad.rpy:66
     old "Skip (A)"
@@ -1123,7 +1123,7 @@ translate spanish strings:
 
     # 00accessibility.rpy:129
     old "Clipboard"
-    new "Potapapeles"
+    new "Portapapeles"
 
     # 00accessibility.rpy:133
     old "Debug"

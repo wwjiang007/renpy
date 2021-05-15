@@ -1,4 +1,4 @@
-﻿# Copyright 2004-2020 Tom Rothamel <pytom@bishoujo.us>
+﻿# Copyright 2004-2021 Tom Rothamel <pytom@bishoujo.us>
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation files
@@ -36,7 +36,12 @@ init python:
         rv = [ ( "English", None) ]
 
         for i in languages:
-            rv.append((i.replace("_", " ").title(), i))
+            rv.append((i.title(), i))
+
+        for i in (("Schinese", "schinese"), ("Tchinese", "tchinese")):
+            if i in rv:
+                rv.remove(i)
+                rv.append(({"schinese": "Simplified Chinese", "tchinese": "Traditional Chinese"}.get(i[1]), i[1]))
 
         rv.sort()
 
@@ -190,6 +195,12 @@ screen preferences:
                                 textbutton _("Show templates") style "l_checkbox" action ToggleField(persistent, "show_templates")
 
                         textbutton _("Sponsor message") style "l_checkbox" action ToggleField(persistent, "sponsor_message")
+
+                        textbutton _("Default theme") style "l_checkbox" action [SetField(persistent, "theme", None), renpy.reload_script]
+
+                        textbutton _("Clear theme") style "l_checkbox" action [ToggleField(persistent, "theme", "clear", None), renpy.reload_script]
+
+                        textbutton _("Dark theme") style "l_checkbox" action [ToggleField(persistent, "theme", "dark", None), renpy.reload_script]
 
 
                 if translations:

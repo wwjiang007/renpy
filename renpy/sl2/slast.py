@@ -1,4 +1,4 @@
-# Copyright 2004-2020 Tom Rothamel <pytom@bishoujo.us>
+# Copyright 2004-2021 Tom Rothamel <pytom@bishoujo.us>
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation files
@@ -1849,7 +1849,7 @@ class SLUse(SLNode):
         # Figure out the cache to use.
 
         ctx = SLContext(context)
-        ctx.new_cache = context.new_cache[self.serial] = { }
+        ctx.new_cache = context.new_cache[self.serial] = { "ast" : ast }
         ctx.miss_cache = context.miss_cache.get(self.serial, None) or { }
         ctx.uses_scope = [ ]
 
@@ -1922,11 +1922,14 @@ class SLUse(SLNode):
     def copy_on_change(self, cache):
 
         c = cache.get(self.serial, None)
+
         if c is None:
             return
 
-        if self.ast is not None:
-            self.ast.copy_on_change(c)
+        ast = c.get("ast", None)
+
+        if ast is not None:
+            ast.copy_on_change(c)
 
     def used_screens(self, callback):
         if not isinstance(self.target, renpy.ast.PyExpr):

@@ -1,4 +1,4 @@
-# Copyright 2004-2020 Tom Rothamel <pytom@bishoujo.us>
+# Copyright 2004-2021 Tom Rothamel <pytom@bishoujo.us>
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation files
@@ -900,9 +900,13 @@ class ShownImageInfo(renpy.object.Object):
         """
         Given a layer, tag, and an image name (with attributes),
         returns the canonical name of an image, if one exists. Raises
-        an exception if it's ambiguious, and returns None if an image
+        an exception if it's ambiguous, and returns None if an image
         with that name couldn't be found.
         """
+
+        f = renpy.config.adjust_attributes.get(name[0], None) or renpy.config.adjust_attributes.get(None, None)
+        if f is not None:
+            name = f(name)
 
         if layer is None:
             layer = renpy.config.tag_layer.get(tag, "master")
@@ -952,6 +956,9 @@ class ShownImageInfo(renpy.object.Object):
 
         for attrs, d in image_attributes[tag].items():
 
+            if not all((i in required) or (i in optional) for i in attrs):
+                continue
+
             ca = getattr(d, "_choose_attributes", None)
 
             if ca:
@@ -970,9 +977,6 @@ class ShownImageInfo(renpy.object.Object):
                 if i in required:
                     num_required += 1
                     continue
-
-                elif i not in optional:
-                    break
 
             else:
 

@@ -117,7 +117,7 @@ def sl2_regexps():
     style_part2 = "(?:" + "|".join(sorted(renpy.sl2.slparser.STYLE_PREFIXES)) + ")"
 
     items = list(groups.items())
-    items.sort(key=lambda a : ( tuple(sorted(a[1])), a[0][1] ) )
+    items.sort(key=lambda a : (tuple(sorted(a[1])), a[0][1]))
 
     for k, prefixes in items:
         names, style = k
@@ -198,7 +198,6 @@ def write_keywords():
 # that file.
 line_buffer = collections.defaultdict(list)
 
-
 # A map from id(o) to the names it's documented under.
 documented = collections.defaultdict(list)
 
@@ -218,6 +217,11 @@ def scan(name, o, prefix=""):
 
     # Get the function's docstring.
     doc = inspect.getdoc(o)
+
+#     if doc is None:
+#         doc = getattr(o, "__doc__", None)
+#         if not isinstance(doc, basestring):
+#             doc = None
 
     if not doc:
         return
@@ -301,8 +305,12 @@ def scan(name, o, prefix=""):
     lb.append(prefix + "")
 
     if inspect.isclass(o):
-        for i in dir(o):
-            scan(i, getattr(o, i), prefix + "    ")
+        if (name not in [ "Matrix", "OffsetMatrix", "RotateMatrix", "ScaleMatrix" ]):
+            for i in dir(o):
+                scan(i, getattr(o, i), prefix + "    ")
+
+    if name == "identity":
+        raise Exception("identity")
 
     documented_list.append(o)
     documented[id(o)].append(name)
@@ -386,8 +394,6 @@ def format_name(name):
 
 def write_reserved(module, dest, ignore_builtins):
 
-    print("Writing", dest)
-
     with open(dest, "w") as f:
 
         for i in sorted(dir(module)):
@@ -413,8 +419,8 @@ def write_pure_const():
         for i in l:
             f.write("* " + format_name(i) + "\n")
 
-    pure = renpy.pyanalysis.pure_functions  # @UndefinedVariable
-    constants = renpy.pyanalysis.constants - pure  # @UndefinedVariable
+    pure = renpy.pyanalysis.pure_functions # @UndefinedVariable
+    constants = renpy.pyanalysis.constants - pure # @UndefinedVariable
 
     with open("source/inc/pure_vars", "w") as f:
         write_set(f, pure)

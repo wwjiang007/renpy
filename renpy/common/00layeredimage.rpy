@@ -26,7 +26,7 @@ python early in layeredimage:
             which is used to create better error messages.
 
         `name`
-            The name of the attribute image.
+            The name of the layeredimage.
 
         `group`
             The group of an attribute, None if not supplied or if it's
@@ -528,7 +528,7 @@ python early in layeredimage:
             after it is parameterized.
 
         `name`
-            The name of the attribute image. This is used as part of the names
+            The name of the layeredimage. This is used as part of the names
             of image components.
 
         `image_format`
@@ -549,7 +549,9 @@ python early in layeredimage:
             have been chosen. It can be used to express complex dependencies between attributes
             or select attributes at random.
 
-        Additional keyword arguments are passed to a Fixed that is created to hold
+        Additional keyword arguments may contain transform properties. If
+        any are present, a transform is created that wraps the result image.
+        Remaining keyword arguments are passed to a Fixed that is created to hold
         the layer. Unless explicitly overridden, xfit and yfit are set to true on
         the Fixed, which means it will shrink to the smallest size that fits all
         of the layer images it is showing.
@@ -655,6 +657,15 @@ python early in layeredimage:
 
             if self.attribute_function:
                 attributes = set(self.attribute_function(attributes))
+
+                unknown = set([i[1:] if i.startswith('-') else i for i in attributes])
+
+                for a in self.attributes:
+
+                    unknown.discard(a.attribute)
+
+                    if a.variant:
+                        unknown.discard(a.variant)
 
             rv = Fixed(**self.fixed_args)
 
@@ -1103,7 +1114,6 @@ python early in layeredimage:
             else:
                 self.transform = [ transform ]
 
-
         @property
         def image(self):
 
@@ -1119,22 +1129,34 @@ python early in layeredimage:
 
             return image
 
-
         def _duplicate(self, args):
 
             rv = self.image._duplicate(args)
-
 
             for i in self.transform:
                 rv = i(rv)
 
             return rv
 
+        def filter_attributes(self, attributes):
+
+            if attributes is None:
+                return None
+
+            name = self.name
+
+            if "[" in name:
+                name = renpy.substitute(name, translate=False)
+
+            name = name.split()
+
+            return tuple(i for i in attributes if i not in name[1:])
+
         def _choose_attributes(self, tag, attributes, optional):
-            return self.image._choose_attributes(tag, attributes, optional)
+            return self.filter_attributes(self.image._choose_attributes(tag, attributes, optional))
 
         def _list_attributes(self, tag, attributes):
-            return self.image._list_attributes(tag, attributes)
+            return self.filter_attributes(self.image._list_attributes(tag, attributes))
 
     renpy.store.Attribute = Attribute
     renpy.store.LayeredImage = LayeredImage

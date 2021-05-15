@@ -1,4 +1,4 @@
-# Copyright 2004-2020 Tom Rothamel <pytom@bishoujo.us>
+# Copyright 2004-2021 Tom Rothamel <pytom@bishoujo.us>
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation files
@@ -420,6 +420,22 @@ def is_playing(channel="music"):
     """
 
     return (get_playing(channel=channel) is not None)
+
+
+def get_loop(channel="music"):
+    """
+    :doc: audio
+
+    Return a list of filenames that are being looped on `channel`, or None
+    if no files are being looped. In the case where a loop is queued, but
+    is not yet playing, the loop is returned, not the currently playing
+    music.
+    """
+
+    c = get_channel(channel)
+    ctx = c.get_context()
+
+    return ctx.last_filenames or None
 
 
 def set_volume(volume, delay=0, channel="music"):

@@ -1,4 +1,4 @@
-﻿# Copyright 2004-2020 Tom Rothamel <pytom@bishoujo.us>
+﻿# Copyright 2004-2021 Tom Rothamel <pytom@bishoujo.us>
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation files
@@ -18,6 +18,11 @@
 # LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+python early:
+
+    # Should steam be enabled?
+    config.enable_steam = True
 
 init -1500 python in achievement:
     from store import persistent, renpy, config, Action
@@ -77,21 +82,42 @@ init -1500 python in achievement:
             if persistent._achievement_progress is None:
                 persistent._achievement_progress = _dict()
 
+            self.stat_max = { }
+
+        def register(self, name, stat_max=None, **kwargs):
+            if stat_max:
+                self.stat_max[name] = stat_max
+
         def grant(self, name):
             persistent._achievements.add(name)
 
         def clear(self, name):
             persistent._achievements.discard(name)
+            persistent._achievement_progress.discard(name)
 
         def clear_all(self):
             persistent._achievements.clear()
+            persistent._achievement_progress.clear()
 
         def has(self, name):
             return name in persistent._achievements
 
-        def progress(self, name, complete):
-            old = persistent._achievement_progress.get(name, 0)
-            persistent._achievement_progress[name] = max(complete, old)
+        def progress(self, name, completed):
+            current = persistent._achievement_progress.get(name, 0)
+
+            if (current is not None) and (current >= completed):
+                return
+
+            persistent._achievement_progress[name] = completed
+
+            if name not in self.stat_max:
+                if config.developer:
+                    raise Exception("To report progress, you must register {} with a stat_max.".format(name))
+                else:
+                    return
+
+            if completed >= self.stat_max[name]:
+                self.grant(name)
 
     def merge(old, new, current):
         if old is None:
@@ -206,9 +232,29 @@ init -1500 python in achievement:
 
             return steam.get_achievement(name)
 
+    def steam_preinit():
+        """
+        This runs before steam.init(), and sets up the steam_appid
+        from config.steam_appid.
+        """
+
+        import os, sys
+
+        if config.early_script_version is not None:
+            return
+
+        if config.steam_appid is None:
+            return
+
+        with open(os.path.join(os.path.dirname(sys.executable), "steam_appid.txt"), "w") as f:
+            f.write(str(config.steam_appid) + "\n")
+
+    # Are the steam libraries installed? Used by the launcher.
+    has_steam = False
 
     try:
         import _renpysteam as steam
+        has_steam = True
         renpy.write_log("Imported steam.")
     except Exception as e:
         steam = None
@@ -221,7 +267,11 @@ init -1500 python in achievement:
         if steam.version < want_version:
             raise Exception("_renpysteam module is too old. (want version %d, got %d)" % (steam.version, want_version))
 
-        if steam.init():
+        steam_preinit()
+
+        if not config.enable_steam:
+            steam = None
+        elif steam.init():
             renpy.write_log("Initialized steam.")
             backends.insert(0, SteamBackend())
         else:
@@ -290,6 +340,17 @@ init -1500 python in achievement:
 
         for i in backends:
             i.clear_all()
+
+    def get_progress(name):
+        """
+        :doc: achievement
+
+        Returns the current progress towards the achievement identified
+        with `name`, or 0 if no progress has been registered for it or if
+        the achievement is not known.
+        """
+
+        return persistent._achievement_progress.get(name, 0)
 
     def progress(name, complete, total=None):
         """

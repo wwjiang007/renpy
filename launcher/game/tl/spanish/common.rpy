@@ -692,7 +692,7 @@ translate spanish strings:
 
     # 00accessibility.rpy:129
     old "Clipboard"
-    new "Potapapeles"
+    new "Portapapeles"
 
     # 00accessibility.rpy:133
     old "Debug"
@@ -745,3 +745,8 @@ translate spanish strings:
     # renpy/common/00preferences.rpy:384
     old "self voicing volume drop"
     new "caída de volumen de voz automática"
+
+    # renpy/common/00preferences.rpy:464
+    old "system cursor"
+    new "cursor del sistema"
+

@@ -124,7 +124,8 @@ expression. It takes the following properties:
 `modal`
     If True, the screen is modal. A modal screen prevents the user
     from interacting with displayables below it, except
-    for the default keymap.
+    for the default keymap. This is evaluated once, when the
+    game starts.
 
 `sensitive`
     An expression that determines whether the screen is sensitive or not.
@@ -686,6 +687,9 @@ The input statement takes no parameters, and the following properties:
     A Python function that is called with what the user has typed,
     when the string changes.
 
+`mask`
+    If given, a string that replaces each displayable character in
+    the text. This can be used to mask out a password.
 
 It also takes:
 

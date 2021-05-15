@@ -1,4 +1,4 @@
-# Copyright 2004-2020 Tom Rothamel <pytom@bishoujo.us>
+# Copyright 2004-2021 Tom Rothamel <pytom@bishoujo.us>
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation files
@@ -142,11 +142,14 @@ def prediction_coroutine(root_widget):
     predicting = True
 
     for i in renpy.config.expensive_predict_callbacks:
-        i()
+        done = False
+        while not done:
+            if not i():
+                done = True
 
-        predicting = False
-        yield False
-        predicting = True
+            predicting = False
+            yield False
+            predicting = True
 
     predicted_screens = [ ]
 

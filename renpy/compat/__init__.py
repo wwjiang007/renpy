@@ -1,4 +1,4 @@
-# Copyright 2004-2020 Tom Rothamel <pytom@bishoujo.us>
+# Copyright 2004-2021 Tom Rothamel <pytom@bishoujo.us>
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation files
@@ -64,6 +64,8 @@ import io
 import sys
 import operator
 
+python_open = open
+
 ################################################################################
 # Alias the Python 3 standard library.
 
@@ -79,8 +81,18 @@ PY2 = future.utils.PY2
 
 if PY2:
     open = io.open
+    import re
+    re.Pattern = re._pattern_type
 else:
     open = builtins.open
+
+
+def compat_open(*args, **kwargs):
+    if (sys._getframe(1).f_code.co_flags & 0xa000) == 0xa000:
+        return open(*args, **kwargs)
+    else:
+        return python_open(*args, **kwargs)
+
 
 ################################################################################
 # Make strict use surrogateescape error handling.
@@ -101,6 +113,7 @@ renpy.update_path()
 basestring = future.utils.string_types # @ReservedAssignment
 pystr = str
 str = future.utils.text_type # @ReservedAssignment
+unicode = future.utils.text_type # @ReservedAssignment
 
 bord = future.utils.bord
 bchr = future.utils.bchr
@@ -132,7 +145,7 @@ else:
 # Sort key functions.
 
 __all__ = [ "PY2", "open", "basestring", "str", "pystr", "range",
-            "bord", "bchr", "tobytes", "chr", ]
+            "bord", "bchr", "tobytes", "chr", "unicode", ]
 
 if PY2:
     __all__ = [ bytes(i) for i in __all__ ]

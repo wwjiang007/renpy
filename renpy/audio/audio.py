@@ -1,4 +1,4 @@
-# Copyright 2004-2020 Tom Rothamel <pytom@bishoujo.us>
+# Copyright 2004-2021 Tom Rothamel <pytom@bishoujo.us>
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation files
@@ -41,12 +41,7 @@ import io
 
 # Import the appropriate modules, or set them to None if we cannot.
 
-disable = os.environ.get("RENPY_DISABLE_SOUND", "")
-
-if not disable:
-    import renpy.audio.renpysound as renpysound
-else:
-    renpysound = None
+import renpy.audio.renpysound as renpysound
 
 # This is True if we were able to sucessfully enable the pcm audio.
 pcm_ok = None
@@ -79,7 +74,7 @@ def load(fn):
             # prediction failed, too late
             pass
         # temporary 1s placeholder, will retry loading when looping:
-        rv = open(os.path.join(renpy.config.commondir,'_dl_silence.ogg'), 'rb')
+        rv = open(os.path.join(renpy.config.commondir, '_dl_silence.ogg'), 'rb')
     return rv
 
 
@@ -358,6 +353,17 @@ class Channel(object):
             except:
                 raise exception("expected float, got {!r}.".format(v))
 
+        def expect_channel():
+            if not spec:
+                raise exception("expected channel at end.")
+
+            v = spec.pop(0)
+
+            try:
+                return renpy.audio.audio.get_channel(v)
+            except:
+                raise exception("expected channel, got {!r}.".format(v))
+
         m = re.match(r'<(.*)>(.*)', filename)
         if not m:
             return filename, 0, -1
@@ -378,6 +384,13 @@ class Channel(object):
                 start = expect_float()
             elif clause == "to":
                 end = expect_float()
+            elif clause == "sync":
+                sync_channel = expect_channel()
+                t = sync_channel.get_pos()
+                if not t or t < 0:
+                    pass
+                else:
+                    start = t / 1000.0
             elif clause == "loop":
                 loop = expect_float()
             elif clause == "silence":
@@ -622,9 +635,6 @@ class Channel(object):
             for filename in filenames:
                 filename, _, _ = self.split_filename(filename, False)
                 renpy.game.persistent._seen_audio[filename] = True # @UndefinedVariable
-
-            if not pcm_ok:
-                return
 
             if not loop_only:
 
@@ -892,7 +902,7 @@ def init():
     global pcm_ok
     global mix_ok
 
-    if not renpy.config.sound:
+    if not renpy.config.sound or ("RENPY_DISABLE_SOUND" in os.environ):
         pcm_ok = False
         mix_ok = False
         return
@@ -913,7 +923,14 @@ def init():
         except:
             if renpy.config.debug_sound:
                 raise
-            pcm_ok = False
+
+            os.environ["SDL_AUDIODRIVER"] = "dummy"
+
+            try:
+                renpysound.init(renpy.config.sound_sample_rate, 2, bufsize, False, renpy.config.equal_mono)
+                pcm_ok = True
+            except:
+                pcm_ok = False
 
     # Find all of the mixers in the game.
     mixers = [ ]
@@ -1142,10 +1159,10 @@ def interact():
 
                 if c.loop:
                     if not filenames or c.get_playing() not in filenames:
-                        c.fadeout(renpy.config.fade_music)
+                        c.fadeout(renpy.config.context_fadeout_music or renpy.config.fade_music)
 
                 if filenames:
-                    c.enqueue(filenames, loop=True, synchro_start=True, tight=tight)
+                    c.enqueue(filenames, loop=True, synchro_start=False, tight=tight, fadein=renpy.config.context_fadein_music)
 
                 c.last_changed = ctx.last_changed
 
@@ -1173,8 +1190,6 @@ def autoreload(_fn):
     After a sound file has been changed, stop all sound (and let Ren'Py restart
     the channels, as needed.)
     """
-
-    print("Sound autoreload", _fn)
 
     for c in all_channels:
         c.reload()

@@ -1,4 +1,4 @@
-# Copyright 2004-2020 Tom Rothamel <pytom@bishoujo.us>
+# Copyright 2004-2021 Tom Rothamel <pytom@bishoujo.us>
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation files
@@ -583,7 +583,7 @@ gesture_component_size = .05
 gesture_stroke_size = .2
 
 # Should we log to stdout rather than files?
-log_to_stdout = False
+log_to_stdout = bool(int(os.environ.get("RENPY_LOG_TO_STDOUT", "0")))
 
 # new-style custom text tags.
 custom_text_tags = { }
@@ -601,7 +601,7 @@ missing_label_callback = None
 preserve_zorder = True
 
 # The set of names to ignore.
-lint_ignore_replaces = [ 'help', 'quit' ]
+lint_ignore_replaces = [ 'help', 'quit', "_confirm_quit" ]
 
 # How long should the presplash be kept up for?
 minimum_presplash_time = 0.0
@@ -1005,11 +1005,11 @@ disable_input = False
 keep_side_render_order = True
 
 # Should this game enable and require gl2?
-gl2 = False
+gl2 = True
 
 # Does this game use the depth buffer? If so, how many bits of depth should
 # it use?
-depth_size = None
+depth_size = 24
 
 # A list of screens to remove when the context is copied.
 context_copy_remove_screens = [ "notify" ]
@@ -1060,6 +1060,90 @@ fbo_size = (4096, 4096)
 # Names to ignore the redefinition of.
 lint_ignore_redefine = [ "gui.about" ]
 
+# A list of functions that are called when Ren'Py terminates.
+quit_callbacks = [ ]
+
+# The steam_appid, if known. This needs to be set here since it is loaded
+# very early.
+steam_appid = None
+
+# How long between when the controller is pressed and the first repeat?
+controller_first_repeat = .25
+
+# How long between repeats?
+controller_repeat = .05
+
+# The states that repeat.
+controller_repeat_states = { "pos", "neg", "press" }
+
+# If True, the side image will only be shown if an image with the same tag
+# is not shown.
+side_image_only_not_showing = False
+
+# How much should the texture bounds be expanded by? This allows the mipmaps
+# to properly include
+expand_texture_bounds = 8
+
+# Should time events be modal?
+modal_timeevent = False
+
+# This exists for debugging Ren'Py.
+gl_set_attributes = None
+
+# The blacklist of controllers with known problems.
+controller_blocklist = [
+    "030000007e0500000920", # Nintendo Pro Controller (needs init to work.)
+]
+
+# Should dissolve transitions be mipmapped by default?
+mipmap_dissolves = False
+
+# Should movies be mipmapped by default?
+mipmap_movies = False
+
+# Should text be mipmapped by default?
+mipmap_text = False
+
+# Should the screensaver be allowed?
+allow_screensaver = True
+
+# The amount of time to spend fading in and out music when the context changes.
+context_fadein_music = 0
+context_fadeout_music = 0
+
+# Shout it be possible to dismiss blocking transitions that are not part of
+# a with statement?
+dismiss_blocking_transitions = True
+
+# Should GL extensions be logged to log.txt
+log_gl_extensions = False
+
+# Should GL shaders be logged to log.txt
+log_gl_shaders = False
+
+# OpenGL Blend Funcs
+gl_blend_func = { }
+
+# Should we pause immediately after a rollback?
+pause_after_rollback = False
+
+# The default perspective.
+perspective = (100.0, 1000.0, 100000.0)
+
+# Does the scene clear the layer at list?
+scene_clears_layer_at_list = False
+
+# The mouse displayable, if any. Can be a displayable, or a callable that
+# return a displayable.
+mouse_displayable = None
+
+# The default bias for the GL level of detail.
+gl_lod_bias = -.5
+
+# A dictionary from a tag (or None) to a function that adjusts the attributes
+# of that tag.
+adjust_attributes = { }
+
 del os
 del collections
 
@@ -1087,3 +1171,12 @@ def init():
         (r'\.(png|jpg|jpeg|webp|gif|tif|tiff|bmp)$', renpy.exports.flush_cache_file),
         (r'\.(mp2|mp3|ogg|opus|wav)$', renpy.audio.audio.autoreload),
         ]
+
+    from renpy.uguu import GL_FUNC_ADD, GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_DST_COLOR, GL_MIN, GL_MAX
+
+    gl_blend_func["normal"] = (GL_FUNC_ADD, GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_FUNC_ADD, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+    gl_blend_func["add"] = (GL_FUNC_ADD, GL_ONE, GL_ONE, GL_FUNC_ADD, GL_ZERO, GL_ONE)
+    gl_blend_func["multiply"] = (GL_FUNC_ADD, GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA, GL_FUNC_ADD, GL_ZERO, GL_ONE)
+    gl_blend_func["min"] = (GL_MIN, GL_ONE, GL_ONE, GL_MIN, GL_ONE, GL_ONE)
+    gl_blend_func["max"] = (GL_MAX, GL_ONE, GL_ONE, GL_MAX, GL_ONE, GL_ONE)
+

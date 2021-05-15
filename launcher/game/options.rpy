@@ -1,4 +1,4 @@
-﻿# Copyright 2004-2020 Tom Rothamel <pytom@bishoujo.us>
+﻿# Copyright 2004-2021 Tom Rothamel <pytom@bishoujo.us>
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation files
@@ -246,8 +246,8 @@ init python:
     # Mac signing options.
     import os
     build.mac_identity = os.environ.get("RENPY_MAC_IDENTITY", None)
-    build.mac_codesign_command = [ "/home/tom/ab/renpy-deps/mac/mac_sign_client.sh", "{identity}", "{app}" ]
-    build.mac_create_dmg_command = [ "/home/tom/ab/renpy-deps/mac/mac_dmg_client.sh", "{identity}", "{volname}", "{sourcedir}", "{dmg}" ]
+    build.mac_codesign_command = [ config.renpy_base + "/scripts/mac/mac_sign_client.sh", "{identity}", "{app}" ]
+    build.mac_create_dmg_command = [ config.renpy_base + "/scripts/mac/mac_dmg_client.sh", "{identity}", "{volname}", "{sourcedir}", "{dmg}" ]
     build.mac_codesign_dmg_command = [ "/bin/true" ]
 
 
@@ -307,6 +307,7 @@ init python:
     build.classify_renpy("**/log.txt", None)
     build.classify_renpy("**/traceback.txt", None)
     build.classify_renpy("**/errors.txt", None)
+    build.classify_renpy("**/steam_appid.txt", None)
     build.classify_renpy("**/saves/", None)
     build.classify_renpy("**/tmp/", None)
     build.classify_renpy("**/.Editra", None)
@@ -372,9 +373,9 @@ init python:
     build.classify_renpy("module/fribidi-src/**", "source")
 
     # all-platforms binary.
-    build.classify_renpy("lib/**/_renpysteam*", None)
+    build.classify_renpy("lib/**/_renpysteam*", "steam")
+    build.classify_renpy("lib/**/*steam_api*", "steam")
     build.classify_renpy("lib/**/*Live2D*", None)
-    build.classify_renpy("lib/**/*steam_api*", None)
     build.classify_renpy("lib/linux-armv7l/", "raspi")
     build.classify_renpy("lib/linux-armv7l/**", "raspi")
     build.classify_renpy("lib/**", "binary")
@@ -390,6 +391,7 @@ init python:
     build.package("sdk", "zip tar.bz2 dmg", "source binary")
     build.package("source", "tar.bz2", "source source_only", update=False)
     build.package("raspi", "tar.bz2", "raspi", dlc=True, update=False)
+    build.package("steam", "zip", "steam", dlc=True)
 
     build.package("jedit", "zip", "jedit", dlc=True)
 
@@ -407,3 +409,7 @@ define config.translate_launcher = True
 
 # Reduce the rate of screen updates.
 default preferences.gl_powersave = True
+
+# Disable steam.
+python early:
+    config.enable_steam = False

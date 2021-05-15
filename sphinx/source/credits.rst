@@ -12,15 +12,15 @@ missing some names in my logs. If this applies to you, please
 accept my apologies and email pytom at bishoujo.us so I can fix
 the omission in future versions.
 
-
-
 * Absinthe
 * Aenakume
+* Ajkahn96
 * Aleema
 * Alessio
 * Alexandre Tranchant
 * Alisha Taylor
 * Andrej
+* Andrí Wilford
 * Andy_kl
 * Apricotorange
 * Arda Güler
@@ -41,7 +41,9 @@ the omission in future versions.
 * Christian Koepp
 * Civalin
 * CobaltCore
+* CodePsy
 * Craig P. Donson
+* 被诅咒的章鱼
 * DaFool
 * Daniel Conley
 * Daniel Luque
@@ -75,6 +77,7 @@ the omission in future versions.
 * Gio
 * Giuseppe Bertone
 * Gouvernathor
+* Gratusfr
 * Gregory Pease
 * Grey
 * Gustavo Carvalho
@@ -93,6 +96,7 @@ the omission in future versions.
 * James Broadhead
 * James Pearson Hughes
 * Jan Beich
+* Jan Masek
 * Javimat
 * Joaquin Garmendia Cabrera
 * Joshua Fehler
@@ -102,6 +106,7 @@ the omission in future versions.
 * Kapil Gain
 * Kathryn
 * Kevin Turner
+* KG
 * Kinsman
 * Kobaltcore
 * Koichi "vbkaisetsu" Akabe
@@ -111,6 +116,7 @@ the omission in future versions.
 * Kyouryuukunn
 * Lapalissiano
 * Lee Yunseok
+* Lent1
 * Lezalith
 * Lore
 * Lucas Ramage
@@ -124,19 +130,23 @@ the omission in future versions.
 * Maxwell Paul Brickner
 * Meithal
 * Merumelu
+* Midgetthetree
 * mikey (ATP Projects)
 * Morgan Willcock
 * Moshibit
 * MrStalker
 * Mugenjohncel (Uncle Mugen)
 * Muhammad Nur Hidayat Yasuyoshi
+* Neotus
 * NetGenSuperstar
+* 逆转咸鱼
 * NoJoker
 * Nolanlemahn
 * Nxcrft
 * Nyaatrap
 * Oshi-Shinobu
 * Patrick Dawson
+* Paul J Martinez
 * Paul Morio
 * Pavel Langwell
 * Peter DeVita

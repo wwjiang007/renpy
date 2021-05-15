@@ -1,4 +1,4 @@
-# Copyright 2004-2020 Tom Rothamel <pytom@bishoujo.us>
+# Copyright 2004-2021 Tom Rothamel <pytom@bishoujo.us>
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation files
@@ -831,7 +831,7 @@ class Layout(object):
                 self.make_alignment_grid(surf)
 
             renpy.display.draw.mutated_surface(surf)
-            tex = renpy.display.draw.load_texture(surf)
+            tex = renpy.display.draw.load_texture(surf, properties={ "mipmap" : renpy.config.mipmap_text if (style.mipmap is None) else style.mipmap })
 
             self.textures[key] = tex
 
@@ -980,6 +980,11 @@ class Layout(object):
                     continue
 
                 elif type == TEXT:
+
+                    if (text_displayable.mask is not None):
+                        if text != u"\u200b":
+                            text = text_displayable.mask * len(text)
+
                     line.extend(tss[-1].subsegment(text))
                     continue
 
@@ -995,6 +1000,12 @@ class Layout(object):
                     tss.pop()
 
                     if not tss:
+
+                        tag = tag[1:]
+
+                        if not renpy.text.extras.text_tags.get(tag, True):
+                            raise Exception("{/%s} isn't valid, since the %s text tag doesn't take a close tag." % (tag, tag))
+
                         raise Exception("%r closes a text tag that isn't open." % text)
 
                 elif tag == "_start":
@@ -1449,7 +1460,7 @@ class Text(renpy.display.core.Displayable):
     """
     :name: Text
     :doc: text
-    :args: (text, slow=None, scope=None, substitute=None, slow_done=None, **properties)
+    :args: (text, slow=None, scope=None, substitute=None, slow_done=None, mipmap=None, **properties)
 
     A displayable that displays text on the screen.
 
@@ -1478,6 +1489,7 @@ class Text(renpy.display.core.Displayable):
     locked = False
 
     language = None
+    mask = None
 
     def after_upgrade(self, version):
 
@@ -1495,7 +1507,7 @@ class Text(renpy.display.core.Displayable):
             self.end = None
             self.dirty = True
 
-    def __init__(self, text, slow=None, scope=None, substitute=None, slow_done=None, replaces=None, **properties):
+    def __init__(self, text, slow=None, scope=None, substitute=None, slow_done=None, replaces=None, mask=None, **properties):
 
         super(Text, self).__init__(**properties)
 
@@ -1520,6 +1532,9 @@ class Text(renpy.display.core.Displayable):
 
         # The text, after substitutions.
         self.text = None
+
+        # A mask, for passwords and such.
+        self.mask = mask
 
         # Sets the text we're showing, and performs substitutions.
         self.set_text(text, scope, substitute)
@@ -1767,6 +1782,7 @@ class Text(renpy.display.core.Displayable):
             rv.append(i)
 
         rv = "".join(rv)
+        rv, _, _ = rv.partition("{done}")
         _, _, rv = rv.rpartition("{fast}")
 
         rv = renpy.text.extras.filter_alt_text(rv)
